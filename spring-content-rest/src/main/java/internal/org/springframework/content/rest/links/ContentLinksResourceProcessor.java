@@ -1,8 +1,25 @@
 package internal.org.springframework.content.rest.links;
 
+import java.beans.PropertyDescriptor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+
+import javax.persistence.Id;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import internal.org.springframework.content.rest.controllers.ContentEntityRestController;
 import internal.org.springframework.content.rest.utils.ContentStoreUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.InvalidPropertyException;
@@ -18,32 +35,31 @@ import org.springframework.data.rest.webmvc.BaseUri;
 import org.springframework.data.rest.webmvc.PersistentEntityResource;
 import org.springframework.data.rest.webmvc.support.RepositoryLinkBuilder;
 import org.springframework.hateoas.Link;
-import org.springframework.hateoas.LinkBuilder;
-import org.springframework.hateoas.ResourceProcessor;
-import org.springframework.hateoas.mvc.BasicLinkBuilder;
+import org.springframework.hateoas.server.LinkBuilder;
+import org.springframework.hateoas.server.RepresentationModelProcessor;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
+import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
+import org.springframework.util.StringUtils;
 
-import javax.persistence.Id;
-import java.beans.PropertyDescriptor;
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import static java.lang.String.format;
 
 /**
  * Adds content and content collection links to Spring Data REST Entity Resources.
- * 
+ *
  * @author warrep
  *
  */
-public class ContentLinksResourceProcessor
-		implements ResourceProcessor<PersistentEntityResource> {
+public class ContentLinksResourceProcessor implements RepresentationModelProcessor<PersistentEntityResource> {
 
 	private static final Log log = LogFactory.getLog(ContentLinksResourceProcessor.class);
+
+	private static Method GET_CONTENT_METHOD = ReflectionUtils.findMethod(ContentEntityRestController.class, "getContent", HttpServletRequest.class, HttpServletResponse.class, String.class, String.class, String.class);;
+
+	static {
+		Assert.notNull(GET_CONTENT_METHOD, "Unable to find ContentEntityRestController.getContent method");
+	}
+
 
 	private ContentStoreService stores;
 	private RestConfiguration config;
@@ -65,7 +81,7 @@ public class ContentLinksResourceProcessor
 		ContentStoreInfo store = ContentStoreUtils.findContentStore(stores, object.getClass());
 		Object contentId = BeanUtils.getFieldWithAnnotation(object, ContentId.class);
 		if (store != null && contentId != null) {
-			resource.add(getLink(config.getBaseUri(), store, contentId));
+			resource.add(getLink(ContentEntityRestController.class, GET_CONTENT_METHOD, config.getBaseUri(), store, contentId));
 		}
 
 		List<Field> processed = new ArrayList<>();
@@ -94,11 +110,11 @@ public class ContentLinksResourceProcessor
 				}
 			}
 			catch (NoSuchFieldException nsfe) {
-				log.trace(String.format("No field for property %s, ignoring",
+				log.trace(format("No field for property %s, ignoring",
 						descriptor.getName()));
 			}
 			catch (SecurityException se) {
-				log.warn(String.format(
+				log.warn(format(
 						"Unexpected security error while handling content links for property %s",
 						descriptor.getName()));
 			}
@@ -144,7 +160,7 @@ public class ContentLinksResourceProcessor
 							value = ReflectionUtils.getField(field, object);
 						}
 						catch (IllegalStateException ise) {
-							log.trace(String.format("Didn't get value for property %s", field.getName()));
+							log.trace(format("Didn't get value for property %s", field.getName()));
 						}
 					}
 					if (value != null) {
@@ -177,7 +193,7 @@ public class ContentLinksResourceProcessor
 						value = ReflectionUtils.getField(field, object);
 					}
 					catch (IllegalStateException ise) {
-						log.trace(String.format("Didn't get value for property %s", field.getName()));
+						log.trace(format("Didn't get value for property %s", field.getName()));
 					}
 				}
 				if (value != null) {
@@ -190,16 +206,22 @@ public class ContentLinksResourceProcessor
 		}
 	}
 
-	private Link getLink(URI baseUri, ContentStoreInfo store, Object id) {
-		LinkBuilder builder = BasicLinkBuilder.linkToCurrentMapping();
+	private Link getLink(Class<?> controller, Method method, URI baseUri, ContentStoreInfo store, Object id) {
+        LinkBuilder builder = null;
 
-		if (baseUri != null) {
-			builder = builder.slash(baseUri);
+		String storePath = ContentStoreUtils.storePath(store);
+		if (!StringUtils.isEmpty(baseUri.toString())) {
+			String basePath = baseUri.toString();
+			if (basePath.startsWith("/")) {
+				basePath = StringUtils.trimLeadingCharacter(basePath, '/');
+			}
+
+			storePath = format("%s/%s", basePath, storePath);
 		}
 
-		return builder.slash(ContentStoreUtils.storePath(store))
-				.slash(id)
-				.withRel(ContentStoreUtils.storePath(store));
+		builder = WebMvcLinkBuilder.linkTo(controller, method, storePath, id);
+
+		return builder.withRel(ContentStoreUtils.storePath(store));
 	}
 
 	private Link getLink(ResourceMetadata md, URI baseUri, Object id, String property, String contentId) {

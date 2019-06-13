@@ -1,16 +1,17 @@
 package internal.org.springframework.content.rest.links;
 
+import java.io.ByteArrayInputStream;
+import java.io.StringReader;
+
 import com.theoryinpractise.halbuilder.api.ReadableRepresentation;
 import com.theoryinpractise.halbuilder.api.RepresentationFactory;
 import com.theoryinpractise.halbuilder.standard.StandardRepresentationFactory;
 import lombok.Setter;
+
 import org.springframework.content.commons.repository.ContentStore;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.io.ByteArrayInputStream;
-import java.io.StringReader;
 
 import static com.github.paulcwarren.ginkgo4j.Ginkgo4jDSL.BeforeEach;
 import static com.github.paulcwarren.ginkgo4j.Ginkgo4jDSL.Context;
