@@ -5,14 +5,19 @@ import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import javax.persistence.Version;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import internal.org.springframework.content.rest.annotations.ContentRestController;
+import internal.org.springframework.content.rest.mappings.ContentHandlerMapping.StoreType;
+import internal.org.springframework.content.rest.mappings.StoreByteRangeHttpRequestHandler;
+import internal.org.springframework.content.rest.utils.ContentStoreUtils;
 import internal.org.springframework.content.rest.utils.HeaderUtils;
+import internal.org.springframework.content.rest.utils.PersistentEntityUtils;
+
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.content.commons.annotations.ContentId;
@@ -28,8 +33,6 @@ import org.springframework.data.mapping.PersistentEntity;
 import org.springframework.data.mapping.PersistentProperty;
 import org.springframework.data.mapping.PersistentPropertyAccessor;
 import org.springframework.data.repository.support.Repositories;
-import org.springframework.hateoas.Link;
-import org.springframework.hateoas.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -43,12 +46,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.multipart.MultipartFile;
-
-import internal.org.springframework.content.rest.annotations.ContentRestController;
-import internal.org.springframework.content.rest.mappings.ContentHandlerMapping.StoreType;
-import internal.org.springframework.content.rest.mappings.StoreByteRangeHttpRequestHandler;
-import internal.org.springframework.content.rest.utils.ContentStoreUtils;
-import internal.org.springframework.content.rest.utils.PersistentEntityUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import static java.lang.String.format;
@@ -266,17 +263,6 @@ public class ContentPropertyCollectionRestController
 
 		response.setStatus(HttpStatus.NO_CONTENT.value());
 		return;
-	}
-
-	Resource<?> toResource(final HttpServletRequest request, Object newContent)
-			throws SecurityException, BeansException {
-		Link self = new Link(
-				StringUtils.trimTrailingCharacter(request.getRequestURL().toString(), '/')
-						+ "/"
-						+ BeanUtils.getFieldWithAnnotation(newContent, ContentId.class));
-		Resource<?> contentResource = new Resource<Object>(newContent,
-				Collections.singletonList(self));
-		return contentResource;
 	}
 
 	private boolean saveContentInternal(HttpHeaders headers,
